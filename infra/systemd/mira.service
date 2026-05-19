@@ -1,0 +1,15 @@
+[Unit]
+Description=MIRA Realtime Agent Backend & Kokoro
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+WorkingDirectory=/opt/mira
+# Ensure old containers are stopped before starting new ones
+ExecStartPre=/usr/local/bin/docker-compose down
+ExecStart=/usr/local/bin/docker-compose up
+ExecStop=/usr/local/bin/docker-compose down
+
+[Install]
+WantedBy=multi-user.target
