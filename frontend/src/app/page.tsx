@@ -20,19 +20,38 @@ export default function Home() {
       const urlModel = params.get('model');
       const urlBackend = params.get('backend');
 
+      const urlConfig = params.get('config');
+
       let updated = false;
-      if (urlGroq || urlOr || urlModel) {
-        setKeys(
-          urlGroq || groqKey,
-          urlOr || openRouterKey,
-          urlModel || openRouterModel
-        );
-        updated = true;
-      }
       
-      if (urlBackend) {
-        useAppStore.getState().setBackendUrl(urlBackend);
-        updated = true;
+      if (urlConfig) {
+        try {
+          const decoded = JSON.parse(atob(decodeURIComponent(urlConfig)));
+          setKeys(
+            decoded.groq || groqKey,
+            decoded.or || openRouterKey,
+            decoded.model || openRouterModel
+          );
+          if (decoded.backend) useAppStore.getState().setBackendUrl(decoded.backend);
+          if (decoded.voice) useAppStore.getState().setKokoroVoice(decoded.voice);
+          updated = true;
+        } catch (e) {
+          console.error("Invalid config string in URL");
+        }
+      } else {
+        if (urlGroq || urlOr || urlModel) {
+          setKeys(
+            urlGroq || groqKey,
+            urlOr || openRouterKey,
+            urlModel || openRouterModel
+          );
+          updated = true;
+        }
+        
+        if (urlBackend) {
+          useAppStore.getState().setBackendUrl(urlBackend);
+          updated = true;
+        }
       }
 
       if (updated) {

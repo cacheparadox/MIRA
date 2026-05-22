@@ -97,7 +97,7 @@ class SessionController:
         for line in traceback.format_stack():
             logger.info(line.strip())
             
-        for task in [self.stt_task, self.llm_task, self.tts_task, self.filler_task]:
+        for task in [self.stt_task, self.llm_task, self.tts_task]:
             if task and not task.done():
                 logger.info(f"Cancelling task {task}")
                 task.cancel()
@@ -150,7 +150,6 @@ class SessionController:
 
     async def transcribe_and_respond(self):
         self.state = "THINKING"
-        self.filler_task = asyncio.create_task(self.play_filler())
         
         if not self.audio_buffer:
             logger.warning("Audio buffer is empty")
@@ -232,7 +231,7 @@ class SessionController:
                 "CRITICAL RULES FOR REALISM:\n"
                 "1. Be extremely conversational, warm, and natural. Speak like a real human on a phone call.\n"
                 "2. Keep responses brief (1-3 sentences max). Silence is deadly on a voice call, so get to the point quickly.\n"
-                "3. Use natural spoken phrasing. Avoid lists, markdown, formal transitions, or robotic AI language like 'As an AI...'.\n"
+                "3. Use natural spoken phrasing. HEAVILY use ellipses (...) and em-dashes (—) to simulate natural pauses, hesitation, and breathing in your speech. Avoid lists, markdown, formal transitions, or robotic AI language like 'As an AI...'.\n"
                 "4. React emotionally to the user's tone. If they are excited, be excited. If they are sad, be empathetic.\n"
                 "5. DO NOT USE EMOJIS or any non-verbal symbols. You are speaking aloud, emojis cannot be spoken.\n"
             )

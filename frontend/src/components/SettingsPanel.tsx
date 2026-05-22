@@ -11,6 +11,16 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
   const [orModel, setOrModel] = useState(openRouterModel || "meta-llama/llama-3-8b-instruct:free");
   const [voice, setVoice] = useState(kokoroVoice || "af_heart");
   const [backend, setBackend] = useState(backendUrl || "");
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyMagicUrl = () => {
+    const configObj = { groq, or: openRouter, model: orModel, backend, voice };
+    const encoded = encodeURIComponent(btoa(JSON.stringify(configObj)));
+    const url = `${window.location.origin}${window.location.pathname}?config=${encoded}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleSave = () => {
     setKeys(groq, openRouter, orModel);
@@ -102,19 +112,27 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-between gap-3">
           <button 
-            onClick={onClose}
-            className="px-4 py-2 text-neutral-400 hover:text-white transition-colors"
+            onClick={handleCopyMagicUrl}
+            className="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg text-white text-sm transition-colors"
           >
-            Cancel
+            {copied ? "Copied!" : "Copy Magic URL"}
           </button>
-          <button 
-            onClick={handleSave}
-            className="px-6 py-2 bg-indigo-500 hover:bg-indigo-600 rounded-lg text-white font-medium transition-colors"
-          >
-            Save
-          </button>
+          <div className="flex gap-3">
+            <button 
+              onClick={onClose}
+              className="px-4 py-2 text-neutral-400 hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleSave}
+              className="px-6 py-2 bg-indigo-500 hover:bg-indigo-600 rounded-lg text-white font-medium transition-colors"
+            >
+              Save
+            </button>
+          </div>
         </div>
       </div>
     </div>
