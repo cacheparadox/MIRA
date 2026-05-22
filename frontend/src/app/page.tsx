@@ -13,6 +13,25 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const groqParam = urlParams.get('groq_api_key');
+      const orParam = urlParams.get('openrouter_api_key');
+      const modelParam = urlParams.get('model');
+      
+      if (groqParam || orParam || modelParam) {
+        const store = useAppStore.getState();
+        store.setKeys(
+          groqParam || store.groqKey,
+          orParam || store.openRouterKey,
+          modelParam || store.openRouterModel
+        );
+        
+        // Remove from URL so they aren't visibly sitting in the address bar
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+
     if (wsTransport) {
       wsTransport.connect();
     }
