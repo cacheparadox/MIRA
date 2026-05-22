@@ -22,10 +22,9 @@ services:
     volumes:
       - kokoro_data:/app/data
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 8G # Safely limit RAM usage out of Oracle's 24GB
+    environment:
+      - OMP_NUM_THREADS=4
+    # Removed memory limits to allow full system resource utilization
 
   cloudflared:
     image: cloudflare/cloudflared:latest
