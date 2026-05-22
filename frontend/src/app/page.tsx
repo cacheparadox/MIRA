@@ -61,7 +61,7 @@ export default function Home() {
             {isSpeaking ? (
               <span className="text-indigo-300 animate-pulse font-medium">Speaking</span>
             ) : isListening ? (
-              <span className="text-green-300 font-medium">Listening...</span>
+              <span className="text-green-300 font-medium text-center leading-tight">Listening...<br/><span className="text-xs opacity-60">Tap to stop</span></span>
             ) : (
               <span className="text-neutral-400 font-medium tracking-wide">Press to Speak</span>
             )}

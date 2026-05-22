@@ -25,17 +25,22 @@ class AudioCapture {
   }
 
   stop() {
-    if (this.mediaRecorder) {
-      this.mediaRecorder.stop();
-    }
-    if (this.stream) {
-      this.stream.getTracks().forEach(track => track.stop());
-    }
-    useAppStore.getState().setListening(false);
-    
-    // Notify backend that speech ended to trigger response
-    if (wsTransport) {
-      wsTransport.sendEvent('SPEECH_END', {});
+    try {
+      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+        this.mediaRecorder.stop();
+      }
+      if (this.stream) {
+        this.stream.getTracks().forEach(track => track.stop());
+      }
+    } catch (e) {
+      console.error("Error stopping audio capture:", e);
+    } finally {
+      useAppStore.getState().setListening(false);
+      
+      // Notify backend that speech ended to trigger response
+      if (wsTransport) {
+        wsTransport.sendEvent('SPEECH_END', {});
+      }
     }
   }
 }
