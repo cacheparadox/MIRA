@@ -12,9 +12,11 @@ interface AppState {
   debugLogs: string[];
   isDebugVisible: boolean;
   isVerboseDebug: boolean;
+  backendUrl: string;
   kokoroVoice: string;
   currentVolume: number;
   setKeys: (groq: string, openrouter: string, orModel: string) => void;
+  setBackendUrl: (url: string) => void;
   setKokoroVoice: (voice: string) => void;
   setCurrentVolume: (vol: number) => void;
   setConnectionStatus: (status: boolean) => void;
@@ -39,10 +41,12 @@ export const useAppStore = create<AppState>()(
       debugLogs: [],
       isDebugVisible: false,
       isVerboseDebug: false,
+      backendUrl: '',
       kokoroVoice: 'af_heart',
       currentVolume: 0,
       
       setKeys: (groq, openrouter, orModel) => set({ groqKey: groq, openRouterKey: openrouter, openRouterModel: orModel }),
+      setBackendUrl: (url) => set({ backendUrl: url }),
       setKokoroVoice: (voice) => set({ kokoroVoice: voice }),
       setCurrentVolume: (vol) => set({ currentVolume: vol }),
       setConnectionStatus: (status) => set({ isConnected: status }),
@@ -55,7 +59,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'mira-storage',
-      partialize: (state) => ({ groqKey: state.groqKey, openRouterKey: state.openRouterKey, openRouterModel: state.openRouterModel }),
+      partialize: (state) => ({ groqKey: state.groqKey, openRouterKey: state.openRouterKey, openRouterModel: state.openRouterModel, backendUrl: state.backendUrl }),
     }
   )
 );

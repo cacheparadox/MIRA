@@ -26,6 +26,7 @@ class WebSocketTransport {
   }
 
   connect() {
+    this.url = useAppStore.getState().backendUrl || process.env.NEXT_PUBLIC_BACKEND_URL || 'ws://localhost:8000/ws';
     this.ws = new WebSocket(this.url);
 
     this.ws.onopen = () => {

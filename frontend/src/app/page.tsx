@@ -9,25 +9,33 @@ import DebugPanel from '../components/DebugPanel';
 import { audioCapture } from '../audio/capture';
 
 export default function Home() {
-  const { isConnected, isListening, isSpeaking, transcript } = useAppStore();
+  const { isConnected, isListening, isSpeaking, transcript, setKeys, groqKey, openRouterKey, openRouterModel } = useAppStore();
   const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const groqParam = urlParams.get('groq_api_key');
-      const orParam = urlParams.get('openrouter_api_key');
-      const modelParam = urlParams.get('model');
-      
-      if (groqParam || orParam || modelParam) {
-        const store = useAppStore.getState();
-        store.setKeys(
-          groqParam || store.groqKey,
-          orParam || store.openRouterKey,
-          modelParam || store.openRouterModel
+      const params = new URLSearchParams(window.location.search);
+      const urlGroq = params.get('groq');
+      const urlOr = params.get('or');
+      const urlModel = params.get('model');
+      const urlBackend = params.get('backend');
+
+      let updated = false;
+      if (urlGroq || urlOr || urlModel) {
+        setKeys(
+          urlGroq || groqKey,
+          urlOr || openRouterKey,
+          urlModel || openRouterModel
         );
-        
-        // Remove from URL so they aren't visibly sitting in the address bar
+        updated = true;
+      }
+      
+      if (urlBackend) {
+        useAppStore.getState().setBackendUrl(urlBackend);
+        updated = true;
+      }
+
+      if (updated) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }

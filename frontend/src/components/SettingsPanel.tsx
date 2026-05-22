@@ -5,16 +5,28 @@ import { useAppStore } from '../state/store';
 import { wsTransport } from '../websocket/transport';
 
 export default function SettingsPanel({ onClose }: { onClose: () => void }) {
-  const { groqKey, openRouterKey, openRouterModel, kokoroVoice, setKeys, setKokoroVoice } = useAppStore();
+  const { groqKey, openRouterKey, openRouterModel, kokoroVoice, backendUrl, setKeys, setKokoroVoice, setBackendUrl } = useAppStore();
   const [groq, setGroq] = useState(groqKey);
   const [openRouter, setOpenRouter] = useState(openRouterKey);
   const [orModel, setOrModel] = useState(openRouterModel || "meta-llama/llama-3-8b-instruct:free");
   const [voice, setVoice] = useState(kokoroVoice || "af_heart");
+  const [backend, setBackend] = useState(backendUrl || "");
 
   const handleSave = () => {
     setKeys(groq, openRouter, orModel);
     setKokoroVoice(voice);
+    
+    let reconnectNeeded = false;
+    if (backend !== backendUrl) {
+      setBackendUrl(backend);
+      reconnectNeeded = true;
+    }
+
     if (wsTransport) {
+      if (reconnectNeeded) {
+        wsTransport.connect();
+      }
+      
       wsTransport.sendEvent('CREDENTIALS', {
         groq_api_key: groq,
         openrouter_api_key: openRouter,
@@ -59,6 +71,16 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
               onChange={(e) => setOrModel(e.target.value)}
               className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
               placeholder="meta-llama/llama-3-8b-instruct:free"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-neutral-400 mb-1">Backend WebSocket URL (for Custom Servers/Tunnels)</label>
+            <input 
+              type="text"
+              value={backend}
+              onChange={(e) => setBackend(e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              placeholder="wss://mira-backend.trycloudflare.com/ws"
             />
           </div>
           <div>
