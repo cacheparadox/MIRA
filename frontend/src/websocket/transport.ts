@@ -15,10 +15,11 @@ class WebSocketTransport {
       useAppStore.getState().setConnectionStatus(true);
       
       // Send credentials upon connect
-      const { groqKey, openRouterKey } = useAppStore.getState();
+      const { groqKey, openRouterKey, openRouterModel } = useAppStore.getState();
       this.sendEvent('CREDENTIALS', {
         groq_api_key: groqKey,
-        openrouter_api_key: openRouterKey
+        openrouter_api_key: openRouterKey,
+        model: openRouterModel
       });
     };
 
@@ -32,24 +33,25 @@ class WebSocketTransport {
     };
   }
 
-  private handleMessage(data: string) {
-    try {
-      const message = JSON.parse(data);
-      if (message.type === 'TRANSCRIPT') {
-        useAppStore.getState().appendTranscript(message.payload);
-      } else if (message.type === 'HARD_STOP') {
-        // Handle interruption playback stop
-        useAppStore.getState().setSpeaking(false);
-      } else if (message.type === 'AUDIO_START') {
-        useAppStore.getState().setSpeaking(true);
-      } else if (message.type === 'AUDIO_END') {
-        useAppStore.getState().setSpeaking(false);
+  private handleMessage(data: string | Blob | ArrayBuffer) {
+    if (typeof data === 'string') {
+      try {
+        const message = JSON.parse(data);
+        if (message.type === 'TRANSCRIPT') {
+          useAppStore.getState().appendTranscript(message.payload);
+        } else if (message.type === 'HARD_STOP') {
+          // Handle interruption playback stop
+          useAppStore.getState().setSpeaking(false);
+        } else if (message.type === 'AUDIO_START') {
+          useAppStore.getState().setSpeaking(true);
+        } else if (message.type === 'AUDIO_END') {
+          useAppStore.getState().setSpeaking(false);
+        }
+      } catch (e) {
+        console.error("Failed to parse JSON message", e);
       }
-    } catch (e) {
-      // Might be binary audio chunk
-      if (data instanceof Blob) {
-        // Handle binary audio play
-      }
+    } else if (data instanceof Blob) {
+      // Handle binary audio play
     }
   }
 
