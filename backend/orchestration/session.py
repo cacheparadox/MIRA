@@ -38,7 +38,7 @@ class SessionController:
 
     def stop(self):
         self.running = False
-        self._cancel_active_tasks()
+        self._cancel_active_tasks(reason="stop")
         logger.info("Session stopped")
 
     async def _send_debug(self, msg: str):
@@ -48,9 +48,15 @@ class SessionController:
             except Exception:
                 pass
 
-    def _cancel_active_tasks(self):
+    def _cancel_active_tasks(self, reason: str = ""):
+        import traceback
+        logger.info(f"Cancelling active tasks. Reason: {reason}")
+        for line in traceback.format_stack():
+            logger.info(line.strip())
+            
         for task in [self.stt_task, self.llm_task, self.tts_task]:
             if task and not task.done():
+                logger.info(f"Cancelling task {task}")
                 task.cancel()
         self.state = "IDLE"
 
@@ -65,13 +71,19 @@ class SessionController:
         elif event_type == "SPEECH_END":
             logger.info("User stopped speaking, trigger response")
             if self.running:
+                import datetime
+                timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                await self._send_debug(f"[VERBOSE] [{timestamp}] [SYSTEM] Received SPEECH_END")
                 # Cancel previous speaking/thinking tasks if any
-                self._cancel_active_tasks()
+                self._cancel_active_tasks(reason="SPEECH_END")
                 self.stt_task = asyncio.create_task(self.transcribe_and_respond())
             
         elif event_type == "INTERRUPT":
             logger.info("User interrupted. Cancelling playback.")
-            self._cancel_active_tasks()
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            await self._send_debug(f"[VERBOSE] [{timestamp}] [SYSTEM] Received INTERRUPT")
+            self._cancel_active_tasks(reason="INTERRUPT")
             # Do NOT clear audio buffer here! Preserve any speech the user just said while interrupting.
             await self.websocket.send_json({"type": "HARD_STOP"})
 
