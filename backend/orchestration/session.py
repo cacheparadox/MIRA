@@ -59,10 +59,10 @@ class SessionController:
         
         try:
             user_text = await self.stt_client.transcribe(audio_bytes)
-            clean_text = re.sub(r'[^a-zA-Z0-9]', '', user_text) if user_text else ""
-            hallucinations = ["[silence]", "(silence)", "[audio logo]", "(audio logo)"]
+            clean_text = re.sub(r'[^a-zA-Z0-9]', '', user_text).lower() if user_text else ""
+            hallucinations = ["silence", "audiologo", "thankyou", "amen", "peter", "hello", "hmm", "ah", "well", "letssee", "letmesee"]
             
-            if len(clean_text) >= 2 and user_text.strip().lower() not in hallucinations:
+            if len(clean_text) >= 2 and clean_text not in hallucinations:
                 logger.info(f"User barged in with valid speech: {user_text}")
                 self._cancel_active_tasks(reason="BARGE_IN")
                 await self.websocket.send_json({"type": "HARD_STOP"})
@@ -176,15 +176,14 @@ class SessionController:
             self.state = "IDLE"
             return
 
-        # Strip out non-alphanumeric to see if there is actual content
-        clean_text = re.sub(r'[^a-zA-Z0-9]', '', user_text)
+        clean_text = re.sub(r'[^a-zA-Z0-9]', '', user_text).lower()
         if len(clean_text) < 2:
             logger.info("Transcription too short or just punctuation, ignoring.")
             self.state = "IDLE"
             return
             
-        hallucinations = ["[silence]", "(silence)", "[audio logo]", "(audio logo)"]
-        if user_text.strip().lower() in hallucinations:
+        hallucinations = ["silence", "audiologo", "thankyou", "amen", "peter", "hello", "hmm", "ah", "well", "letssee", "letmesee"]
+        if clean_text in hallucinations:
             logger.info("Transcription is a known hallucination, ignoring.")
             self.state = "IDLE"
             return

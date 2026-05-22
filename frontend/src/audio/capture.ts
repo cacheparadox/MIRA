@@ -112,16 +112,15 @@ class AudioCapture {
     if (isSpeaking) {
       this.hasSpokenInTurn = true;
       if (isMiraSpeaking) {
-        // Barge-in! User is speaking while MIRA is speaking.
-        console.log("Interrupting MIRA!");
-        useAppStore.getState().setSpeaking(false);
+        // User spoke loud enough over MIRA. Let backend verify if it's real speech or echo.
+        console.log("Possible barge-in detected. Sending to backend to verify...");
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-          this.pendingEvent = 'INTERRUPT';
-          this.mediaRecorder.stop(); // Triggers onstop, sends audio, sends INTERRUPT, restarts
+          this.pendingEvent = 'SPEECH_END';
+          this.mediaRecorder.stop(); // Triggers onstop, sends audio, sends SPEECH_END, restarts
         } else if (wsTransport) {
-          wsTransport.sendEvent('INTERRUPT', {});
+          wsTransport.sendEvent('SPEECH_END', {});
         }
-        // Reset so we don't spam INTERRUPT
+        // Reset so we don't spam SPEECH_END while MIRA continues speaking (if backend rejects it)
         this.consecutiveSpeechFrames = 0;
       }
       
