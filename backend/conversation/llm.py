@@ -44,4 +44,4 @@ class OpenRouterClient:
                                 pass
             except Exception as e:
                 logger.error(f"OpenRouter streaming error: {e}")
-                yield " [Error communicating with AI] "
+                raise e

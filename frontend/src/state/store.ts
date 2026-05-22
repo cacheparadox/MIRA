@@ -9,11 +9,15 @@ interface AppState {
   isListening: boolean;
   isSpeaking: boolean;
   transcript: string;
+  debugLogs: string[];
+  isDebugVisible: boolean;
   setKeys: (groq: string, openrouter: string, orModel: string) => void;
   setConnectionStatus: (status: boolean) => void;
   setListening: (status: boolean) => void;
   setSpeaking: (status: boolean) => void;
   appendTranscript: (text: string) => void;
+  addDebugLog: (log: string) => void;
+  setDebugVisible: (visible: boolean) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -26,12 +30,16 @@ export const useAppStore = create<AppState>()(
       isListening: false,
       isSpeaking: false,
       transcript: '',
+      debugLogs: [],
+      isDebugVisible: false,
       
       setKeys: (groq, openrouter, orModel) => set({ groqKey: groq, openRouterKey: openrouter, openRouterModel: orModel }),
       setConnectionStatus: (status) => set({ isConnected: status }),
       setListening: (status) => set({ isListening: status }),
       setSpeaking: (status) => set({ isSpeaking: status }),
       appendTranscript: (text) => set((state) => ({ transcript: state.transcript + ' ' + text })),
+      addDebugLog: (log) => set((state) => ({ debugLogs: [...state.debugLogs, log] })),
+      setDebugVisible: (visible) => set({ isDebugVisible: visible }),
     }),
     {
       name: 'mira-storage',

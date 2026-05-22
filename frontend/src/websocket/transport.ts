@@ -46,6 +46,8 @@ class WebSocketTransport {
           useAppStore.getState().setSpeaking(true);
         } else if (message.type === 'AUDIO_END') {
           useAppStore.getState().setSpeaking(false);
+        } else if (message.type === 'DEBUG') {
+          useAppStore.getState().addDebugLog(message.payload);
         }
       } catch (e) {
         console.error("Failed to parse JSON message", e);

@@ -41,6 +41,13 @@ class SessionController:
         self._cancel_active_tasks()
         logger.info("Session stopped")
 
+    async def _send_debug(self, msg: str):
+        if self.running:
+            try:
+                await self.websocket.send_json({"type": "DEBUG", "payload": msg})
+            except Exception:
+                pass
+
     def _cancel_active_tasks(self):
         for task in [self.stt_task, self.llm_task, self.tts_task]:
             if task and not task.done():
@@ -106,7 +113,13 @@ class SessionController:
                 return
 
         logger.info("Starting transcription...")
-        user_text = await self.stt_client.transcribe(audio_bytes)
+        try:
+            user_text = await self.stt_client.transcribe(audio_bytes)
+        except Exception as e:
+            logger.error(f"STT Error: {e}")
+            await self._send_debug(f"STT Error: {e}")
+            self.state = "IDLE"
+            return
         
         if not user_text or not user_text.strip():
             logger.info("No transcription content")
@@ -137,6 +150,7 @@ class SessionController:
                 context_str = "\n".join([m["content"] for m in memories])
             except Exception as e:
                 logger.error(f"Memory lookup error: {e}")
+                await self._send_debug(f"Memory lookup error: {e}")
                 context_str = ""
 
             system_prompt = (
@@ -200,6 +214,7 @@ class SessionController:
             logger.info("LLM generation task cancelled")
         except Exception as e:
             logger.error(f"Error in LLM response loop: {e}")
+            await self._send_debug(f"LLM Error: {e}")
         finally:
             await self.websocket.send_json({"type": "AUDIO_END"})
             self.state = "IDLE"
@@ -244,3 +259,4 @@ class SessionController:
                     await self.websocket.send_bytes(audio_chunk)
         except Exception as e:
             logger.error(f"Error speaking sentence: {e}")
+            await self._send_debug(f"TTS Error: {e}")

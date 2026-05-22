@@ -5,6 +5,7 @@ import { useAppStore } from '../state/store';
 import { wsTransport } from '../websocket/transport';
 import { motion } from 'framer-motion';
 import SettingsPanel from '../components/SettingsPanel';
+import DebugPanel from '../components/DebugPanel';
 import { audioCapture } from '../audio/capture';
 
 export default function Home() {
@@ -32,6 +33,8 @@ export default function Home() {
         animate={{ opacity: isSpeaking ? 0.2 : 0.05 }}
         className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 pointer-events-none"
       />
+      
+      <DebugPanel />
 
       <div className="z-10 flex flex-col items-center w-full max-w-2xl px-6">
         <h1 className="text-4xl font-light tracking-widest text-white/80 mb-2">MIRA</h1>
