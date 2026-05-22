@@ -5,18 +5,21 @@ import { useAppStore } from '../state/store';
 import { wsTransport } from '../websocket/transport';
 
 export default function SettingsPanel({ onClose }: { onClose: () => void }) {
-  const { groqKey, openRouterKey, openRouterModel, setKeys } = useAppStore();
+  const { groqKey, openRouterKey, openRouterModel, kokoroVoice, setKeys, setKokoroVoice } = useAppStore();
   const [groq, setGroq] = useState(groqKey);
   const [openRouter, setOpenRouter] = useState(openRouterKey);
-  const [orModel, setOrModel] = useState(openRouterModel || "openai/gpt-oss-120b:free");
+  const [orModel, setOrModel] = useState(openRouterModel || "meta-llama/llama-3-8b-instruct:free");
+  const [voice, setVoice] = useState(kokoroVoice || "af_heart");
 
   const handleSave = () => {
     setKeys(groq, openRouter, orModel);
+    setKokoroVoice(voice);
     if (wsTransport) {
       wsTransport.sendEvent('CREDENTIALS', {
         groq_api_key: groq,
         openrouter_api_key: openRouter,
-        model: orModel
+        model: orModel,
+        kokoro_voice: voice
       });
     }
     onClose();
@@ -55,8 +58,25 @@ export default function SettingsPanel({ onClose }: { onClose: () => void }) {
               value={orModel}
               onChange={(e) => setOrModel(e.target.value)}
               className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors"
-              placeholder="openai/gpt-oss-120b:free"
+              placeholder="meta-llama/llama-3-8b-instruct:free"
             />
+          </div>
+          <div>
+            <label className="block text-sm text-neutral-400 mb-1">MIRA's Voice</label>
+            <select
+              value={voice}
+              onChange={(e) => setVoice(e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 transition-colors appearance-none"
+            >
+              <option value="af_heart">Heart (Warm & Natural)</option>
+              <option value="af_bella">Bella (Friendly)</option>
+              <option value="af_nicole">Nicole (Clear & Articulate)</option>
+              <option value="af_sarah">Sarah (Upbeat)</option>
+              <option value="af_sky">Sky (Soft)</option>
+              <option value="am_michael">Michael (Deep & Calm)</option>
+              <option value="am_adam">Adam (Energetic)</option>
+              <option value="bm_george">George (Authoritative)</option>
+            </select>
           </div>
         </div>
 

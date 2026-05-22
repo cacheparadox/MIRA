@@ -43,5 +43,8 @@ class OpenRouterClient:
                             except json.JSONDecodeError:
                                 pass
             except Exception as e:
-                logger.error(f"OpenRouter streaming error: {e}")
-                raise e
+                error_msg = str(e)
+                if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                    error_msg += f" - Response: {e.response.text}"
+                logger.error(f"OpenRouter streaming error: {error_msg}")
+                raise Exception(error_msg)

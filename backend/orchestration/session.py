@@ -252,11 +252,18 @@ class SessionController:
         logger.info(f"Speaking sentence: {clean_sentence}")
         try:
             # KokoroTTSClient.stream_audio yields raw mp3 bytes chunks
-            async for audio_chunk in self.tts_client.stream_audio(clean_sentence):
+            kokoro_voice = self.credentials.get("kokoro_voice", "af_heart")
+            
+            # Buffer the chunks into a single MP3 for this sentence to allow easy frontend playback
+            full_audio = bytearray()
+            async for audio_chunk in self.tts_client.stream_audio(clean_sentence, voice=kokoro_voice):
                 if not self.running:
                     break
                 if audio_chunk:
-                    await self.websocket.send_bytes(audio_chunk)
+                    full_audio.extend(audio_chunk)
+            
+            if full_audio and self.running:
+                await self.websocket.send_bytes(bytes(full_audio))
         except Exception as e:
             logger.error(f"Error speaking sentence: {e}")
             await self._send_debug(f"TTS Error: {e}")

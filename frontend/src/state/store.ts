@@ -11,7 +11,11 @@ interface AppState {
   transcript: string;
   debugLogs: string[];
   isDebugVisible: boolean;
+  kokoroVoice: string;
+  currentVolume: number;
   setKeys: (groq: string, openrouter: string, orModel: string) => void;
+  setKokoroVoice: (voice: string) => void;
+  setCurrentVolume: (vol: number) => void;
   setConnectionStatus: (status: boolean) => void;
   setListening: (status: boolean) => void;
   setSpeaking: (status: boolean) => void;
@@ -32,8 +36,12 @@ export const useAppStore = create<AppState>()(
       transcript: '',
       debugLogs: [],
       isDebugVisible: false,
+      kokoroVoice: 'af_heart',
+      currentVolume: 0,
       
       setKeys: (groq, openrouter, orModel) => set({ groqKey: groq, openRouterKey: openrouter, openRouterModel: orModel }),
+      setKokoroVoice: (voice) => set({ kokoroVoice: voice }),
+      setCurrentVolume: (vol) => set({ currentVolume: vol }),
       setConnectionStatus: (status) => set({ isConnected: status }),
       setListening: (status) => set({ isListening: status }),
       setSpeaking: (status) => set({ isSpeaking: status }),

@@ -50,21 +50,20 @@ export default function Home() {
         >
           <motion.div
             animate={{
-              scale: isSpeaking ? [1, 1.2, 1] : isListening ? [1, 1.05, 1] : 1,
+              scale: isSpeaking || isListening ? 1 + (useAppStore.getState().currentVolume / 200) : 1,
               opacity: isSpeaking ? 0.8 : isListening ? 0.4 : 0.1
             }}
             transition={{
-              duration: isSpeaking ? 1.5 : 2,
-              repeat: Infinity,
-              ease: "easeInOut"
+              duration: 0.1,
+              ease: "linear"
             }}
             className="absolute inset-0 rounded-full bg-indigo-500 blur-3xl group-hover:bg-indigo-400 transition-colors"
           />
-          <div className="w-32 h-32 rounded-full border border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-center shadow-2xl group-hover:border-white/30 transition-all">
+          <div className="w-32 h-32 rounded-full border border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-center shadow-2xl group-hover:border-white/30 transition-all z-10">
             {isSpeaking ? (
-              <span className="text-indigo-300 animate-pulse font-medium">Speaking</span>
+              <span className="text-indigo-300 font-medium drop-shadow-[0_0_8px_rgba(165,180,252,0.8)]">Speaking</span>
             ) : isListening ? (
-              <span className="text-green-300 font-medium text-center leading-tight">Listening...<br/><span className="text-xs opacity-60">Tap to stop</span></span>
+              <span className="text-green-300 font-medium text-center leading-tight">Listening...<br/><span className="text-xs opacity-60">Auto-detects silence</span></span>
             ) : (
               <span className="text-neutral-400 font-medium tracking-wide">Press to Speak</span>
             )}

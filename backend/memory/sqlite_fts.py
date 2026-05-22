@@ -30,14 +30,21 @@ class MemoryStore:
             await db.commit()
             
     async def search_memory(self, query: str, limit: int = 5) -> list[dict]:
+        import re
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
+            # FTS5 syntax sanitization
+            words = re.findall(r'\w+', query)
+            if not words:
+                return []
+            safe_query = " OR ".join(f'"{w}"' for w in words)
+            
             cursor = await db.execute('''
                 SELECT content, timestamp, importance, emotion 
                 FROM memories 
                 WHERE memories MATCH ? 
                 ORDER BY rank 
                 LIMIT ?
-            ''', (query, limit))
+            ''', (safe_query, limit))
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]

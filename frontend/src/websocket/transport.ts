@@ -33,6 +33,10 @@ class WebSocketTransport {
     };
   }
 
+  private playbackContext: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private animationFrameId: number | null = null;
+
   private handleMessage(data: string | Blob | ArrayBuffer) {
     if (typeof data === 'string') {
       try {
@@ -40,8 +44,11 @@ class WebSocketTransport {
         if (message.type === 'TRANSCRIPT') {
           useAppStore.getState().appendTranscript(message.payload);
         } else if (message.type === 'HARD_STOP') {
-          // Handle interruption playback stop
           useAppStore.getState().setSpeaking(false);
+          if (this.playbackContext) {
+            this.playbackContext.close();
+            this.playbackContext = null;
+          }
         } else if (message.type === 'AUDIO_START') {
           useAppStore.getState().setSpeaking(true);
         } else if (message.type === 'AUDIO_END') {
@@ -53,9 +60,59 @@ class WebSocketTransport {
         console.error("Failed to parse JSON message", e);
       }
     } else if (data instanceof Blob) {
-      // Handle binary audio play
+      this.playAudioBlob(data);
     }
   }
+
+  private async playAudioBlob(blob: Blob) {
+    if (!this.playbackContext || this.playbackContext.state === 'closed') {
+      this.playbackContext = new AudioContext();
+      this.analyser = this.playbackContext.createAnalyser();
+      this.analyser.fftSize = 256;
+      this.analyser.connect(this.playbackContext.destination);
+    }
+
+    try {
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioBuffer = await this.playbackContext.decodeAudioData(arrayBuffer);
+      
+      const source = this.playbackContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(this.analyser!);
+      
+      source.onended = () => {
+        if (this.animationFrameId) {
+          cancelAnimationFrame(this.animationFrameId);
+        }
+        useAppStore.getState().setCurrentVolume(0);
+      };
+
+      source.start(0);
+      this.monitorPlaybackVolume();
+    } catch (e) {
+      console.error("Error playing audio blob", e);
+    }
+  }
+
+  private monitorPlaybackVolume = () => {
+    if (!this.analyser) return;
+    
+    const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+    this.analyser.getByteFrequencyData(dataArray);
+    
+    let sum = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+      sum += dataArray[i] * dataArray[i];
+    }
+    const rms = Math.sqrt(sum / dataArray.length);
+    
+    // Only update if we're actually speaking (prevents overriding capture volume when quiet)
+    if (useAppStore.getState().isSpeaking) {
+      useAppStore.getState().setCurrentVolume(rms);
+    }
+
+    this.animationFrameId = requestAnimationFrame(this.monitorPlaybackVolume);
+  };
 
   sendEvent(type: string, payload: any) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
