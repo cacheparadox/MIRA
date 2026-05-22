@@ -222,6 +222,7 @@ class SessionController:
 
         except asyncio.CancelledError:
             logger.info("LLM generation task cancelled")
+            await self._send_debug(f"[VERBOSE] [SYSTEM] LLM task was cancelled (e.g. by INTERRUPT or SPEECH_END).")
         except Exception as e:
             logger.error(f"Error in LLM response loop: {e}")
             await self._send_debug(f"LLM Error: {e}")

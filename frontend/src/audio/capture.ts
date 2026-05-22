@@ -10,6 +10,7 @@ class AudioCapture {
   
   private silenceTimer: number | null = null;
   private volumeHistory: number[] = [];
+  private hasSpokenInTurn: boolean = false;
   private readonly SILENCE_TIMEOUT_MS = 800; // 0.8 seconds as requested
   
   async start() {
@@ -77,6 +78,7 @@ class AudioCapture {
     const isSpeaking = rms > noiseFloor + 12;
 
     if (isSpeaking) {
+      this.hasSpokenInTurn = true;
       if (useAppStore.getState().isSpeaking) {
         // Barge-in! User is speaking while MIRA is speaking.
         console.log("Interrupting MIRA!");
@@ -91,12 +93,13 @@ class AudioCapture {
         this.silenceTimer = null;
       }
     } else {
-      if (!this.silenceTimer && this.volumeHistory.length > 50) { // Wait for baseline
+      if (!this.silenceTimer && this.hasSpokenInTurn) { // Wait for baseline and ensure user actually spoke
         this.silenceTimer = window.setTimeout(() => {
           console.log("Silence detected. Sending audio to process.");
           if (wsTransport) {
             wsTransport.sendEvent('SPEECH_END', {});
           }
+          this.hasSpokenInTurn = false;
           this.silenceTimer = null;
         }, this.SILENCE_TIMEOUT_MS);
       }
