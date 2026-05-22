@@ -21,7 +21,8 @@ class GroqSTTClient:
             response = await self.client.audio.transcriptions.create(
                 file=file_tuple,
                 model="whisper-large-v3-turbo",
-                response_format="text"
+                response_format="text",
+                language="en"
             )
             return response
         except Exception as e:

@@ -226,6 +226,7 @@ class SessionController:
                 "2. Keep responses brief (1-3 sentences max). Silence is deadly on a voice call, so get to the point quickly.\n"
                 "3. Use natural spoken phrasing. Avoid lists, markdown, formal transitions, or robotic AI language like 'As an AI...'.\n"
                 "4. React emotionally to the user's tone. If they are excited, be excited. If they are sad, be empathetic.\n"
+                "5. DO NOT USE EMOJIS or any non-verbal symbols. You are speaking aloud, emojis cannot be spoken.\n"
             )
             if context_str:
                 system_prompt += f"\n\nHere is relevant context from past conversations:\n{context_str}"
@@ -248,9 +249,16 @@ class SessionController:
 
             await self.websocket.send_json({"type": "TRANSCRIPT", "payload": "\nMIRA: "})
 
+            first_chunk_received = False
             async for chunk in self.llm_client.stream_chat(messages, model=model):
                 if not self.running:
                     break
+                    
+                if not first_chunk_received and chunk:
+                    import datetime
+                    ts = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                    await self._send_debug(f"[VERBOSE] [{ts}] LLM (OpenRouter) First token received")
+                    first_chunk_received = True
                 
                 # Send text chunk to frontend
                 await self.websocket.send_json({"type": "TRANSCRIPT", "payload": chunk})
@@ -354,6 +362,9 @@ class SessionController:
             import random
             filler = random.choice(["Hmm...", "Let me see...", "Well...", "Ah...", "Let's see..."])
             logger.info(f"Playing filler: {filler}")
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            await self._send_debug(f"[VERBOSE] [{timestamp}] TTS (Kokoro) Filler: {filler}")
             try:
                 if not self.tts_client:
                     self.tts_client = KokoroTTSClient()
