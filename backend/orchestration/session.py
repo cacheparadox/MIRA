@@ -237,6 +237,8 @@ class SessionController:
                 "5. DO NOT USE EMOJIS or any non-verbal symbols. You are speaking aloud, emojis cannot be spoken.\n"
             )
             if context_str:
+                # Strip emojis from old FTS memories so the LLM doesn't mimic them
+                context_str = re.sub(r'[\U00010000-\U0010ffff]', '', context_str)
                 system_prompt += f"\n\nHere are some potentially relevant memories from PAST conversations (use only if relevant to the current topic):\n{context_str}"
 
             messages = [{"role": "system", "content": system_prompt}]
