@@ -20,6 +20,7 @@ class SessionController:
         self.credentials = {}
 
         self.audio_buffer = bytearray()
+        self.last_mira_text = ""
 
         # Clients will be initialized when keys are received or on demand
         self.stt_client: Optional[GroqSTTClient] = None
@@ -62,7 +63,14 @@ class SessionController:
             clean_text = re.sub(r'[^a-zA-Z0-9]', '', user_text).lower() if user_text else ""
             hallucinations = ["silence", "audiologo", "thankyou", "amen", "peter", "hello", "hmm", "ah", "well", "letssee", "letmesee"]
             
-            if len(clean_text) >= 2 and clean_text not in hallucinations:
+            # Fuzzy match to check if it's just the speaker echoing MIRA's own words
+            is_echo = False
+            if self.last_mira_text and len(clean_text) > 3:
+                mira_clean = re.sub(r'[^a-zA-Z0-9]', '', self.last_mira_text).lower()
+                if clean_text in mira_clean or clean_text in "wellahletmeseesilence":
+                    is_echo = True
+
+            if len(clean_text) >= 2 and clean_text not in hallucinations and not is_echo:
                 logger.info(f"User barged in with valid speech: {user_text}")
                 self._cancel_active_tasks(reason="BARGE_IN")
                 await self.websocket.send_json({"type": "HARD_STOP"})
@@ -263,6 +271,7 @@ class SessionController:
                 await self.websocket.send_json({"type": "TRANSCRIPT", "payload": chunk})
                 
                 full_response += chunk
+                self.last_mira_text = full_response
                 sentence_buffer += chunk
 
                 # Check if we have a full sentence or natural pause
@@ -284,6 +293,7 @@ class SessionController:
 
             # Store the interaction in memory
             if full_response.strip():
+                self.last_mira_text = full_response
                 try:
                     await self.memory_store.add_memory(f"User: {user_text}\nMIRA: {full_response}")
                 except Exception as e:

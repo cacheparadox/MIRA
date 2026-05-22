@@ -105,14 +105,15 @@ class AudioCapture {
       this.consecutiveSpeechFrames = 0;
     }
 
-    // Require ~80ms normally, but ~400ms (25 frames) of sustained loud volume to barge-in over MIRA
-    const framesRequired = isMiraSpeaking ? 25 : 5; 
+    // Require ~80ms normally, but ~1.2s (70 frames) of sustained loud volume to barge-in over MIRA
+    // This longer duration prevents 400ms micro-chunks that cause Whisper hallucinations
+    const framesRequired = isMiraSpeaking ? 70 : 5; 
     const isSpeaking = this.consecutiveSpeechFrames > framesRequired;
 
     if (isSpeaking) {
       this.hasSpokenInTurn = true;
       if (isMiraSpeaking) {
-        // User spoke loud enough over MIRA. Let backend verify if it's real speech or echo.
+        // User spoke loud enough over MIRA for >1.2s. Let backend verify if it's real speech or echo.
         console.log("Possible barge-in detected. Sending to backend to verify...");
         if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
           this.pendingEvent = 'SPEECH_END';
