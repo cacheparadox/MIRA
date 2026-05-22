@@ -19,6 +19,10 @@ export default function Home() {
   }, []);
 
   const handleOrbClick = () => {
+    if (wsTransport) {
+      wsTransport.resumeAudioContext();
+    }
+    
     if (isListening) {
       audioCapture?.stop();
     } else {

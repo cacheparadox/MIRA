@@ -4,8 +4,21 @@ class WebSocketTransport {
   private ws: WebSocket | null = null;
   private url: string;
 
+  private playbackContext: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private animationFrameId: number | null = null;
+
   constructor(url: string) {
     this.url = url;
+    if (typeof window !== 'undefined') {
+      this.playbackContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+  }
+
+  resumeAudioContext() {
+    if (this.playbackContext && this.playbackContext.state === 'suspended') {
+      this.playbackContext.resume();
+    }
   }
 
   connect() {
@@ -33,9 +46,7 @@ class WebSocketTransport {
     };
   }
 
-  private playbackContext: AudioContext | null = null;
-  private analyser: AnalyserNode | null = null;
-  private animationFrameId: number | null = null;
+  // properties moved to top
 
   private handleMessage(data: string | Blob | ArrayBuffer) {
     if (typeof data === 'string') {
@@ -45,10 +56,7 @@ class WebSocketTransport {
           useAppStore.getState().appendTranscript(message.payload);
         } else if (message.type === 'HARD_STOP') {
           useAppStore.getState().setSpeaking(false);
-          if (this.playbackContext) {
-            this.playbackContext.close();
-            this.playbackContext = null;
-          }
+          // Just stop the current audio source nodes in a real implementation, don't close context
         } else if (message.type === 'AUDIO_START') {
           useAppStore.getState().setSpeaking(true);
         } else if (message.type === 'AUDIO_END') {
@@ -65,8 +73,13 @@ class WebSocketTransport {
   }
 
   private async playAudioBlob(blob: Blob) {
-    if (!this.playbackContext || this.playbackContext.state === 'closed') {
-      this.playbackContext = new AudioContext();
+    if (!this.playbackContext) return;
+    
+    if (this.playbackContext.state === 'suspended') {
+      await this.playbackContext.resume();
+    }
+
+    if (!this.analyser) {
       this.analyser = this.playbackContext.createAnalyser();
       this.analyser.fftSize = 256;
       this.analyser.connect(this.playbackContext.destination);
