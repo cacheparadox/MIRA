@@ -2,7 +2,7 @@ import json
 import logging
 import asyncio
 from fastapi import WebSocket
-from backend.orchestration.session import SessionController
+from orchestration.session import SessionController
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,9 @@ class ConnectionManager:
                 data = json.loads(message)
                 await session.process_event(data)
             except json.JSONDecodeError:
-                # If it's binary audio, it will likely be received via receive_bytes, but currently main.py does receive_text.
-                # Actually, WebSockets can receive text or bytes. If the frontend sends base64 audio, it's text.
-                # If binary, we need to handle it. Let's assume JSON for control, and maybe base64 for audio.
-                pass
+                logger.warning("Received text message that is not valid JSON")
+
+    async def handle_bytes(self, websocket: WebSocket, data: bytes):
+        if websocket in self.active_connections:
+            session = self.active_connections[websocket]
+            await session.process_audio_chunk(data)

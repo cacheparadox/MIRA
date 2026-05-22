@@ -1,6 +1,6 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from backend.websocket.manager import ConnectionManager
+from websocket.manager import ConnectionManager
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -17,7 +17,7 @@ app.add_middleware(
 )
 
 manager = ConnectionManager()
-from backend.memory.sqlite_fts import MemoryStore
+from memory.sqlite_fts import MemoryStore
 memory_store = MemoryStore()
 
 @app.on_event("startup")
@@ -33,8 +33,12 @@ async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            data = await websocket.receive_text()
-            await manager.handle_message(websocket, data)
+            # Receive general websocket message structure to support both text and binary
+            message = await websocket.receive()
+            if "text" in message:
+                await manager.handle_message(websocket, message["text"])
+            elif "bytes" in message:
+                await manager.handle_bytes(websocket, message["bytes"])
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception as e:
