@@ -8,6 +8,9 @@ class WebSocketTransport {
   private playbackContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private animationFrameId: number | null = null;
+  private audioQueue: ArrayBuffer[] = [];
+  private isPlayingAudio: boolean = false;
+  private currentSource: AudioBufferSourceNode | null = null;
 
   constructor(url: string) {
     this.url = url;
@@ -57,7 +60,12 @@ class WebSocketTransport {
           useAppStore.getState().appendTranscript(message.payload);
         } else if (message.type === 'HARD_STOP') {
           useAppStore.getState().setSpeaking(false);
-          // Just stop the current audio source nodes in a real implementation, don't close context
+          this.audioQueue = [];
+          if (this.currentSource) {
+            try { this.currentSource.stop(); } catch (e) {}
+            this.currentSource.disconnect();
+            this.currentSource = null;
+          }
         } else if (message.type === 'AUDIO_START') {
           useAppStore.getState().setSpeaking(true);
         } else if (message.type === 'AUDIO_END') {
@@ -78,7 +86,27 @@ class WebSocketTransport {
 
   private async playAudioBlob(blob: Blob) {
     if (!this.playbackContext) return;
+    try {
+      const arrayBuffer = await blob.arrayBuffer();
+      this.audioQueue.push(arrayBuffer);
+      if (!this.isPlayingAudio) {
+        this.playNextAudio();
+      }
+    } catch (e) {
+      console.error("Error queueing audio blob", e);
+    }
+  }
+
+  private async playNextAudio() {
+    if (this.audioQueue.length === 0) {
+      this.isPlayingAudio = false;
+      return;
+    }
     
+    this.isPlayingAudio = true;
+    const arrayBuffer = this.audioQueue.shift()!;
+    
+    if (!this.playbackContext) return;
     if (this.playbackContext.state === 'suspended') {
       await this.playbackContext.resume();
     }
@@ -90,24 +118,29 @@ class WebSocketTransport {
     }
 
     try {
-      const arrayBuffer = await blob.arrayBuffer();
       const audioBuffer = await this.playbackContext.decodeAudioData(arrayBuffer);
-      
       const source = this.playbackContext.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(this.analyser!);
       
+      this.currentSource = source;
+      
       source.onended = () => {
-        if (this.animationFrameId) {
+        if (this.animationFrameId && this.audioQueue.length === 0) {
           cancelAnimationFrame(this.animationFrameId);
+          this.animationFrameId = null;
+          useAppStore.getState().setCurrentVolume(0);
         }
-        useAppStore.getState().setCurrentVolume(0);
+        this.playNextAudio();
       };
 
       source.start(0);
-      this.monitorPlaybackVolume();
+      if (!this.animationFrameId) {
+        this.monitorPlaybackVolume();
+      }
     } catch (e) {
-      console.error("Error playing audio blob", e);
+      console.error("Error playing audio chunk", e);
+      this.playNextAudio();
     }
   }
 
