@@ -11,6 +11,7 @@ class AudioCapture {
   private silenceTimer: number | null = null;
   private volumeHistory: number[] = [];
   private hasSpokenInTurn: boolean = false;
+  private consecutiveSpeechFrames: number = 0;
   private readonly SILENCE_TIMEOUT_MS = 800; // 0.8 seconds as requested
   
   async start() {
@@ -75,7 +76,15 @@ class AudioCapture {
     }
 
     // Speech threshold
-    const isSpeaking = rms > noiseFloor + 12;
+    const isLoud = rms > noiseFloor + 12;
+
+    if (isLoud) {
+      this.consecutiveSpeechFrames++;
+    } else {
+      this.consecutiveSpeechFrames = 0;
+    }
+
+    const isSpeaking = this.consecutiveSpeechFrames > 5; // Require ~80ms of sustained volume
 
     if (isSpeaking) {
       this.hasSpokenInTurn = true;
@@ -86,6 +95,8 @@ class AudioCapture {
         if (wsTransport) {
           wsTransport.sendEvent('INTERRUPT', {});
         }
+        // Reset so we don't spam INTERRUPT
+        this.consecutiveSpeechFrames = 0;
       }
       
       if (this.silenceTimer) {
