@@ -1,4 +1,5 @@
 import { useAppStore } from '../state/store';
+import { audioCapture } from '../audio/capture';
 
 class WebSocketTransport {
   private ws: WebSocket | null = null;
@@ -61,6 +62,9 @@ class WebSocketTransport {
           useAppStore.getState().setSpeaking(true);
         } else if (message.type === 'AUDIO_END') {
           useAppStore.getState().setSpeaking(false);
+          if (audioCapture) {
+            audioCapture.clearBuffer();
+          }
         } else if (message.type === 'DEBUG') {
           useAppStore.getState().addDebugLog(message.payload);
         }

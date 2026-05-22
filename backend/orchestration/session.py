@@ -30,6 +30,7 @@ class SessionController:
         self.stt_task: Optional[asyncio.Task] = None
         self.llm_task: Optional[asyncio.Task] = None
         self.tts_task: Optional[asyncio.Task] = None
+        self.filler_task: Optional[asyncio.Task] = None
 
     async def start(self):
         self.running = True
@@ -87,7 +88,7 @@ class SessionController:
         for line in traceback.format_stack():
             logger.info(line.strip())
             
-        for task in [self.stt_task, self.llm_task, self.tts_task]:
+        for task in [self.stt_task, self.llm_task, self.tts_task, self.filler_task]:
             if task and not task.done():
                 logger.info(f"Cancelling task {task}")
                 task.cancel()
@@ -140,9 +141,11 @@ class SessionController:
 
     async def transcribe_and_respond(self):
         self.state = "THINKING"
+        self.filler_task = asyncio.create_task(self.play_filler())
+        
         if not self.audio_buffer:
             logger.warning("Audio buffer is empty")
-            self.state = "IDLE"
+            self._cancel_active_tasks(reason="empty_buffer")
             return
 
         # 1. Transcribe audio using STT
@@ -344,3 +347,27 @@ class SessionController:
         except Exception as e:
             logger.error(f"Error speaking sentence: {e}")
             await self._send_debug(f"TTS Error: {e}")
+
+    async def play_filler(self):
+        await asyncio.sleep(0.8)
+        if self.state == "THINKING" and self.running:
+            import random
+            filler = random.choice(["Hmm...", "Let me see...", "Well...", "Ah...", "Let's see..."])
+            logger.info(f"Playing filler: {filler}")
+            try:
+                if not self.tts_client:
+                    self.tts_client = KokoroTTSClient()
+                kokoro_voice = self.credentials.get("kokoro_voice", "af_heart")
+                
+                full_audio = bytearray()
+                async for chunk in self.tts_client.stream_audio(filler, voice=kokoro_voice):
+                    if self.state != "THINKING" or not self.running:
+                        break
+                    if chunk:
+                        full_audio.extend(chunk)
+                        
+                if full_audio and self.state == "THINKING" and self.running:
+                    await self.websocket.send_json({"type": "AUDIO_START"})
+                    await self.websocket.send_bytes(bytes(full_audio))
+            except Exception as e:
+                logger.error(f"Error playing filler: {e}")

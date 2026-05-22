@@ -180,6 +180,10 @@ class AudioCapture {
       }
     }
   }
+
+  clearBuffer() {
+    this.audioChunks = [];
+  }
 }
 
 export const audioCapture = typeof window !== 'undefined' ? new AudioCapture() : null;
