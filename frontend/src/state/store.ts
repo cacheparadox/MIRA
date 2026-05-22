@@ -11,6 +11,7 @@ interface AppState {
   transcript: string;
   debugLogs: string[];
   isDebugVisible: boolean;
+  isVerboseDebug: boolean;
   kokoroVoice: string;
   currentVolume: number;
   setKeys: (groq: string, openrouter: string, orModel: string) => void;
@@ -19,6 +20,7 @@ interface AppState {
   setConnectionStatus: (status: boolean) => void;
   setListening: (status: boolean) => void;
   setSpeaking: (status: boolean) => void;
+  setVerboseDebug: (verbose: boolean) => void;
   appendTranscript: (text: string) => void;
   addDebugLog: (log: string) => void;
   setDebugVisible: (visible: boolean) => void;
@@ -36,6 +38,7 @@ export const useAppStore = create<AppState>()(
       transcript: '',
       debugLogs: [],
       isDebugVisible: false,
+      isVerboseDebug: false,
       kokoroVoice: 'af_heart',
       currentVolume: 0,
       
@@ -45,6 +48,7 @@ export const useAppStore = create<AppState>()(
       setConnectionStatus: (status) => set({ isConnected: status }),
       setListening: (status) => set({ isListening: status }),
       setSpeaking: (status) => set({ isSpeaking: status }),
+      setVerboseDebug: (verbose) => set({ isVerboseDebug: verbose }),
       appendTranscript: (text) => set((state) => ({ transcript: state.transcript + ' ' + text })),
       addDebugLog: (log) => set((state) => ({ debugLogs: [...state.debugLogs, log] })),
       setDebugVisible: (visible) => set({ isDebugVisible: visible }),

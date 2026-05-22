@@ -42,6 +42,11 @@ class OpenRouterClient:
                                         yield content
                             except json.JSONDecodeError:
                                 pass
+            except httpx.HTTPStatusError as e:
+                await e.response.aread()
+                error_msg = f"{e} - Response: {e.response.text}"
+                logger.error(f"OpenRouter HTTP Error: {error_msg}")
+                raise Exception(error_msg)
             except Exception as e:
                 error_msg = str(e)
                 if hasattr(e, 'response') and hasattr(e.response, 'text'):

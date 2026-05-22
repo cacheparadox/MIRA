@@ -63,9 +63,9 @@ export default function Home() {
             {isSpeaking ? (
               <span className="text-indigo-300 font-medium drop-shadow-[0_0_8px_rgba(165,180,252,0.8)]">Speaking</span>
             ) : isListening ? (
-              <span className="text-green-300 font-medium text-center leading-tight">Listening...<br/><span className="text-xs opacity-60">Auto-detects silence</span></span>
+              <span className="text-green-300 font-medium text-center leading-tight">Listening...<br/><span className="text-xs opacity-60">Hands-free active</span></span>
             ) : (
-              <span className="text-neutral-400 font-medium tracking-wide">Press to Speak</span>
+              <span className="text-neutral-400 font-medium tracking-wide">Tap to Activate</span>
             )}
           </div>
         </div>

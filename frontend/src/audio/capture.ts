@@ -14,7 +14,13 @@ class AudioCapture {
   
   async start() {
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
       this.mediaRecorder = new MediaRecorder(this.stream, { mimeType: 'audio/webm' });
       
       this.mediaRecorder.ondataavailable = (e) => {
@@ -71,6 +77,15 @@ class AudioCapture {
     const isSpeaking = rms > noiseFloor + 12;
 
     if (isSpeaking) {
+      if (useAppStore.getState().isSpeaking) {
+        // Barge-in! User is speaking while MIRA is speaking.
+        console.log("Interrupting MIRA!");
+        useAppStore.getState().setSpeaking(false);
+        if (wsTransport) {
+          wsTransport.sendEvent('INTERRUPT', {});
+        }
+      }
+      
       if (this.silenceTimer) {
         clearTimeout(this.silenceTimer);
         this.silenceTimer = null;
@@ -78,8 +93,11 @@ class AudioCapture {
     } else {
       if (!this.silenceTimer && this.volumeHistory.length > 50) { // Wait for baseline
         this.silenceTimer = window.setTimeout(() => {
-          console.log("Silence detected. Stopping recording.");
-          this.stop();
+          console.log("Silence detected. Sending audio to process.");
+          if (wsTransport) {
+            wsTransport.sendEvent('SPEECH_END', {});
+          }
+          this.silenceTimer = null;
         }, this.SILENCE_TIMEOUT_MS);
       }
     }

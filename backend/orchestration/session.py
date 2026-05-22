@@ -72,7 +72,7 @@ class SessionController:
         elif event_type == "INTERRUPT":
             logger.info("User interrupted. Cancelling playback.")
             self._cancel_active_tasks()
-            self.audio_buffer.clear()
+            # Do NOT clear audio buffer here! Preserve any speech the user just said while interrupting.
             await self.websocket.send_json({"type": "HARD_STOP"})
 
     async def process_audio_chunk(self, chunk: bytes):
@@ -127,6 +127,9 @@ class SessionController:
             return
 
         logger.info(f"Transcribed user text: {user_text}")
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        await self._send_debug(f"[VERBOSE] [{timestamp}] STT (Groq) Output: {user_text}")
         await self.websocket.send_json({"type": "TRANSCRIPT", "payload": f"User: {user_text}"})
 
         # 2. Get LLM Response
@@ -169,6 +172,10 @@ class SessionController:
                 {"role": "user", "content": user_text}
             ]
 
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            await self._send_debug(f"[VERBOSE] [{timestamp}] LLM (OpenRouter) Input: {messages}")
+
             model = self.credentials.get("model") or "openai/gpt-oss-120b:free"
             logger.info(f"Calling LLM with model: {model}")
 
@@ -202,6 +209,9 @@ class SessionController:
             # Speak any remaining text in buffer
             if sentence_buffer.strip() and self.running:
                 await self.speak_sentence(sentence_buffer)
+
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+            await self._send_debug(f"[VERBOSE] [{timestamp}] LLM (OpenRouter) Output: {full_response}")
 
             # Store the interaction in memory
             if full_response.strip():
@@ -250,6 +260,9 @@ class SessionController:
             return
 
         logger.info(f"Speaking sentence: {clean_sentence}")
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        await self._send_debug(f"[VERBOSE] [{timestamp}] TTS (Kokoro) Input: {clean_sentence}")
         try:
             # KokoroTTSClient.stream_audio yields raw mp3 bytes chunks
             kokoro_voice = self.credentials.get("kokoro_voice", "af_heart")
