@@ -28,7 +28,9 @@ class OpenRouterClient:
         async with httpx.AsyncClient(timeout=timeout) as client:
             try:
                 async with client.stream("POST", f"{self.base_url}/chat/completions", headers=headers, json=payload) as response:
-                    response.raise_for_status()
+                    if response.status_code != 200:
+                        await response.aread()
+                        response.raise_for_status()
                     async for line in response.aiter_lines():
                         if line.startswith("data: "):
                             data_str = line[6:]
