@@ -76,7 +76,9 @@ class AudioCapture {
     }
 
     // Speech threshold
-    const isLoud = rms > noiseFloor + 12;
+    const isMiraSpeaking = useAppStore.getState().isSpeaking;
+    const threshold = isMiraSpeaking ? noiseFloor + 25 : noiseFloor + 12; // Harder to trigger if MIRA is speaking
+    const isLoud = rms > threshold;
 
     if (isLoud) {
       this.consecutiveSpeechFrames++;
@@ -84,11 +86,13 @@ class AudioCapture {
       this.consecutiveSpeechFrames = 0;
     }
 
-    const isSpeaking = this.consecutiveSpeechFrames > 5; // Require ~80ms of sustained volume
+    // Require ~80ms normally, but ~240ms of sustained loud volume to barge-in over MIRA
+    const framesRequired = isMiraSpeaking ? 15 : 5; 
+    const isSpeaking = this.consecutiveSpeechFrames > framesRequired;
 
     if (isSpeaking) {
       this.hasSpokenInTurn = true;
-      if (useAppStore.getState().isSpeaking) {
+      if (isMiraSpeaking) {
         // Barge-in! User is speaking while MIRA is speaking.
         console.log("Interrupting MIRA!");
         useAppStore.getState().setSpeaking(false);
