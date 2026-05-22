@@ -62,7 +62,7 @@ class SessionController:
         try:
             user_text = await self.stt_client.transcribe(audio_bytes)
             clean_text = re.sub(r'[^a-zA-Z0-9]', '', user_text).lower() if user_text else ""
-            hallucinations = ["silence", "audiologo", "thankyou", "amen", "peter", "hello", "hmm", "ah", "well", "letssee", "letmesee"]
+            hallucinations = ["silence", "audiologo", "thankyou", "amen", "peter", "hello", "hmm", "ah", "well", "letssee", "letmesee", "um", "uh", "yeah", "ok", "okay", "mhm", "uhhuh", "right", "alright"]
             
             # Fuzzy match to check if it's just the speaker echoing MIRA's own words
             is_echo = False
@@ -190,7 +190,7 @@ class SessionController:
             self.state = "IDLE"
             return
             
-        hallucinations = ["silence", "audiologo", "thankyou", "amen", "peter", "hello", "hmm", "ah", "well", "letssee", "letmesee"]
+        hallucinations = ["silence", "audiologo", "thankyou", "amen", "peter", "hello", "hmm", "ah", "well", "letssee", "letmesee", "um", "uh", "yeah", "ok", "okay", "mhm", "uhhuh", "right", "alright"]
         if clean_text in hallucinations:
             logger.info("Transcription is a known hallucination, ignoring.")
             self.state = "IDLE"
