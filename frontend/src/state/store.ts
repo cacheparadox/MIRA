@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface AppState {
   groqKey: string;
@@ -15,18 +16,26 @@ interface AppState {
   appendTranscript: (text: string) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  groqKey: '',
-  openRouterKey: '',
-  openRouterModel: '',
-  isConnected: false,
-  isListening: false,
-  isSpeaking: false,
-  transcript: '',
-  
-  setKeys: (groq, openrouter, orModel) => set({ groqKey: groq, openRouterKey: openrouter, openRouterModel: orModel }),
-  setConnectionStatus: (status) => set({ isConnected: status }),
-  setListening: (status) => set({ isListening: status }),
-  setSpeaking: (status) => set({ isSpeaking: status }),
-  appendTranscript: (text) => set((state) => ({ transcript: state.transcript + ' ' + text })),
-}));
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      groqKey: '',
+      openRouterKey: '',
+      openRouterModel: '',
+      isConnected: false,
+      isListening: false,
+      isSpeaking: false,
+      transcript: '',
+      
+      setKeys: (groq, openrouter, orModel) => set({ groqKey: groq, openRouterKey: openrouter, openRouterModel: orModel }),
+      setConnectionStatus: (status) => set({ isConnected: status }),
+      setListening: (status) => set({ isListening: status }),
+      setSpeaking: (status) => set({ isSpeaking: status }),
+      appendTranscript: (text) => set((state) => ({ transcript: state.transcript + ' ' + text })),
+    }),
+    {
+      name: 'mira-storage',
+      partialize: (state) => ({ groqKey: state.groqKey, openRouterKey: state.openRouterKey, openRouterModel: state.openRouterModel }),
+    }
+  )
+);

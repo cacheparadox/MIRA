@@ -5,6 +5,7 @@ import { useAppStore } from '../state/store';
 import { wsTransport } from '../websocket/transport';
 import { motion } from 'framer-motion';
 import SettingsPanel from '../components/SettingsPanel';
+import { audioCapture } from '../audio/capture';
 
 export default function Home() {
   const { isConnected, isListening, isSpeaking, transcript } = useAppStore();
@@ -15,6 +16,14 @@ export default function Home() {
       wsTransport.connect();
     }
   }, []);
+
+  const handleOrbClick = () => {
+    if (isListening) {
+      audioCapture?.stop();
+    } else {
+      audioCapture?.start();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-neutral-900 text-white flex flex-col items-center justify-center font-sans overflow-hidden relative">
@@ -32,7 +41,10 @@ export default function Home() {
         </div>
 
         {/* Orbs / Visualization */}
-        <div className="relative h-64 w-64 flex items-center justify-center mb-12">
+        <div 
+          onClick={handleOrbClick}
+          className="relative h-64 w-64 flex items-center justify-center mb-12 cursor-pointer group"
+        >
           <motion.div
             animate={{
               scale: isSpeaking ? [1, 1.2, 1] : isListening ? [1, 1.05, 1] : 1,
@@ -43,15 +55,15 @@ export default function Home() {
               repeat: Infinity,
               ease: "easeInOut"
             }}
-            className="absolute inset-0 rounded-full bg-indigo-500 blur-3xl"
+            className="absolute inset-0 rounded-full bg-indigo-500 blur-3xl group-hover:bg-indigo-400 transition-colors"
           />
-          <div className="w-32 h-32 rounded-full border border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-center shadow-2xl">
+          <div className="w-32 h-32 rounded-full border border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-center shadow-2xl group-hover:border-white/30 transition-all">
             {isSpeaking ? (
-              <span className="text-indigo-300 animate-pulse">Speaking</span>
+              <span className="text-indigo-300 animate-pulse font-medium">Speaking</span>
             ) : isListening ? (
-              <span className="text-green-300">Listening...</span>
+              <span className="text-green-300 font-medium">Listening...</span>
             ) : (
-              <span className="text-neutral-500">Idle</span>
+              <span className="text-neutral-400 font-medium tracking-wide">Press to Speak</span>
             )}
           </div>
         </div>
