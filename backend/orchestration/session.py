@@ -21,6 +21,7 @@ class SessionController:
 
         self.audio_buffer = bytearray()
         self.last_mira_text = ""
+        self.session_history = []
 
         # Clients will be initialized when keys are received or on demand
         self.stt_client: Optional[GroqSTTClient] = None
@@ -236,12 +237,15 @@ class SessionController:
                 "5. DO NOT USE EMOJIS or any non-verbal symbols. You are speaking aloud, emojis cannot be spoken.\n"
             )
             if context_str:
-                system_prompt += f"\n\nHere is relevant context from past conversations:\n{context_str}"
+                system_prompt += f"\n\nHere are some potentially relevant memories from PAST conversations (use only if relevant to the current topic):\n{context_str}"
 
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_text}
-            ]
+            messages = [{"role": "system", "content": system_prompt}]
+            
+            # Append recent conversation history (last 6 messages = 3 turns)
+            for msg in self.session_history[-6:]:
+                messages.append(msg)
+                
+            messages.append({"role": "user", "content": user_text})
 
             import datetime
             timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
@@ -294,6 +298,8 @@ class SessionController:
             # Store the interaction in memory
             if full_response.strip():
                 self.last_mira_text = full_response
+                self.session_history.append({"role": "user", "content": user_text})
+                self.session_history.append({"role": "assistant", "content": full_response})
                 try:
                     await self.memory_store.add_memory(f"User: {user_text}\nMIRA: {full_response}")
                 except Exception as e:
