@@ -4,6 +4,7 @@ import { useAppStore } from '../state/store';
 class AudioCapture {
   private mediaRecorder: MediaRecorder | null = null;
   private stream: MediaStream | null = null;
+  private audioChunks: Blob[] = [];
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private animationFrameId: number | null = null;
@@ -12,6 +13,7 @@ class AudioCapture {
   private volumeHistory: number[] = [];
   private hasSpokenInTurn: boolean = false;
   private consecutiveSpeechFrames: number = 0;
+  private pendingEvent: 'SPEECH_END' | 'INTERRUPT' | null = null;
   private readonly SILENCE_TIMEOUT_MS = 800; // 0.8 seconds as requested
   
   async start() {
@@ -26,8 +28,25 @@ class AudioCapture {
       this.mediaRecorder = new MediaRecorder(this.stream, { mimeType: 'audio/webm' });
       
       this.mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0 && wsTransport) {
-          wsTransport.sendAudio(e.data);
+        if (e.data.size > 0) {
+          this.audioChunks.push(e.data);
+        }
+      };
+
+      this.mediaRecorder.onstop = () => {
+        if (this.audioChunks.length > 0 && wsTransport) {
+          const blob = new Blob(this.audioChunks, { type: 'audio/webm' });
+          wsTransport.sendAudio(blob);
+          
+          if (this.pendingEvent) {
+            wsTransport.sendEvent(this.pendingEvent, {});
+            this.pendingEvent = null;
+          }
+        }
+        this.audioChunks = [];
+        // Immediately restart if still listening
+        if (useAppStore.getState().isListening && this.stream) {
+          this.mediaRecorder?.start(500);
         }
       };
 
@@ -41,7 +60,7 @@ class AudioCapture {
       this.volumeHistory = [];
       this.monitorAudio();
 
-      // Chunk every 500ms
+      // Start recording
       this.mediaRecorder.start(500);
       useAppStore.getState().setListening(true);
     } catch (err) {
@@ -96,7 +115,10 @@ class AudioCapture {
         // Barge-in! User is speaking while MIRA is speaking.
         console.log("Interrupting MIRA!");
         useAppStore.getState().setSpeaking(false);
-        if (wsTransport) {
+        if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+          this.pendingEvent = 'INTERRUPT';
+          this.mediaRecorder.stop(); // Triggers onstop, sends audio, sends INTERRUPT, restarts
+        } else if (wsTransport) {
           wsTransport.sendEvent('INTERRUPT', {});
         }
         // Reset so we don't spam INTERRUPT
@@ -111,7 +133,10 @@ class AudioCapture {
       if (!this.silenceTimer && this.hasSpokenInTurn) { // Wait for baseline and ensure user actually spoke
         this.silenceTimer = window.setTimeout(() => {
           console.log("Silence detected. Sending audio to process.");
-          if (wsTransport) {
+          if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+            this.pendingEvent = 'SPEECH_END';
+            this.mediaRecorder.stop(); // Triggers onstop, sends audio, sends SPEECH_END, restarts
+          } else if (wsTransport) {
             wsTransport.sendEvent('SPEECH_END', {});
           }
           this.hasSpokenInTurn = false;

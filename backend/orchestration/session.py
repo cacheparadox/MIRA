@@ -138,6 +138,19 @@ class SessionController:
             self.state = "IDLE"
             return
 
+        # Strip out non-alphanumeric to see if there is actual content
+        clean_text = re.sub(r'[^a-zA-Z0-9]', '', user_text)
+        if len(clean_text) < 2:
+            logger.info("Transcription too short or just punctuation, ignoring.")
+            self.state = "IDLE"
+            return
+            
+        hallucinations = ["[silence]", "(silence)", "[audio logo]", "(audio logo)"]
+        if user_text.strip().lower() in hallucinations:
+            logger.info("Transcription is a known hallucination, ignoring.")
+            self.state = "IDLE"
+            return
+
         logger.info(f"Transcribed user text: {user_text}")
         import datetime
         timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
