@@ -48,6 +48,39 @@ class SessionController:
             except Exception:
                 pass
 
+    async def _handle_concurrent_speech(self):
+        """Transcribes incoming audio while MIRA is busy. Cancels MIRA only if the user actually spoke."""
+        if not self.audio_buffer:
+            return
+            
+        audio_bytes = bytes(self.audio_buffer)
+        self.audio_buffer.clear()
+        
+        try:
+            user_text = await self.stt_client.transcribe(audio_bytes)
+            clean_text = re.sub(r'[^a-zA-Z0-9]', '', user_text) if user_text else ""
+            hallucinations = ["[silence]", "(silence)", "[audio logo]", "(audio logo)"]
+            
+            if len(clean_text) >= 2 and user_text.strip().lower() not in hallucinations:
+                logger.info(f"User barged in with valid speech: {user_text}")
+                self._cancel_active_tasks(reason="BARGE_IN")
+                await self.websocket.send_json({"type": "HARD_STOP"})
+                
+                # Directly process the barge-in as the new turn
+                self.state = "THINKING"
+                logger.info(f"Transcribed user text: {user_text}")
+                import datetime
+                timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+                await self._send_debug(f"[{timestamp}] STT (Groq) Output: {user_text}")
+                
+                await self.websocket.send_json({"type": "TRANSCRIPT", "payload": f"\nUser: {user_text}"})
+                
+                self.llm_task = asyncio.create_task(self.generate_and_stream_response(user_text))
+            else:
+                logger.info("Concurrent speech ignored (noise/hallucination).")
+        except Exception as e:
+            logger.error(f"Concurrent STT Error: {e}")
+
     def _cancel_active_tasks(self, reason: str = ""):
         import traceback
         logger.info(f"Cancelling active tasks. Reason: {reason}")
@@ -74,9 +107,12 @@ class SessionController:
                 import datetime
                 timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
                 await self._send_debug(f"[VERBOSE] [{timestamp}] [SYSTEM] Received SPEECH_END")
-                # Cancel previous speaking/thinking tasks if any
-                self._cancel_active_tasks(reason="SPEECH_END")
-                self.stt_task = asyncio.create_task(self.transcribe_and_respond())
+                
+                if self.state in ["THINKING", "SPEAKING"]:
+                    asyncio.create_task(self._handle_concurrent_speech())
+                else:
+                    self._cancel_active_tasks(reason="SPEECH_END")
+                    self.stt_task = asyncio.create_task(self.transcribe_and_respond())
             
         elif event_type == "INTERRUPT":
             logger.info("User interrupted. Cancelling playback.")
@@ -84,7 +120,6 @@ class SessionController:
             timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
             await self._send_debug(f"[VERBOSE] [{timestamp}] [SYSTEM] Received INTERRUPT")
             self._cancel_active_tasks(reason="INTERRUPT")
-            # Do NOT clear audio buffer here! Preserve any speech the user just said while interrupting.
             await self.websocket.send_json({"type": "HARD_STOP"})
 
     async def process_audio_chunk(self, chunk: bytes):
@@ -206,10 +241,9 @@ class SessionController:
 
             sentence_buffer = ""
             full_response = ""
+            audio_started = False
 
             await self.websocket.send_json({"type": "TRANSCRIPT", "payload": "\nMIRA: "})
-            await self.websocket.send_json({"type": "AUDIO_START"})
-            self.state = "SPEAKING"
 
             async for chunk in self.llm_client.stream_chat(messages, model=model):
                 if not self.running:
@@ -225,15 +259,15 @@ class SessionController:
                 if any(p in sentence_buffer for p in [".", "?", "!", "\n"]):
                     parts = self._split_sentences(sentence_buffer)
                     if len(parts) > 1:
-                        # Process all except the last incomplete part
                         for part in parts[:-1]:
                             if part.strip():
-                                await self.speak_sentence(part)
+                                await self.speak_sentence(part, audio_started)
+                                audio_started = True
                         sentence_buffer = parts[-1]
 
             # Speak any remaining text in buffer
             if sentence_buffer.strip() and self.running:
-                await self.speak_sentence(sentence_buffer)
+                await self.speak_sentence(sentence_buffer, audio_started)
 
             timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
             await self._send_debug(f"[VERBOSE] [{timestamp}] LLM (OpenRouter) Output: {full_response}")
@@ -254,7 +288,8 @@ class SessionController:
             logger.error(f"Error in LLM response loop:\n{error_trace}")
             await self._send_debug(f"LLM Error: {type(e).__name__} - {str(e)}\n{error_trace}")
         finally:
-            await self.websocket.send_json({"type": "AUDIO_END"})
+            if audio_started:
+                await self.websocket.send_json({"type": "AUDIO_END"})
             self.state = "IDLE"
 
     def _split_sentences(self, text: str) -> list[str]:
@@ -279,7 +314,7 @@ class SessionController:
         text = re.sub(r'\(.*?\)', '', text)
         return text.strip()
 
-    async def speak_sentence(self, sentence: str):
+    async def speak_sentence(self, sentence: str, audio_started: bool):
         if not self.tts_client:
             self.tts_client = KokoroTTSClient()
         
@@ -292,10 +327,8 @@ class SessionController:
         timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
         await self._send_debug(f"[VERBOSE] [{timestamp}] TTS (Kokoro) Input: {clean_sentence}")
         try:
-            # KokoroTTSClient.stream_audio yields raw mp3 bytes chunks
             kokoro_voice = self.credentials.get("kokoro_voice", "af_heart")
             
-            # Buffer the chunks into a single MP3 for this sentence to allow easy frontend playback
             full_audio = bytearray()
             async for audio_chunk in self.tts_client.stream_audio(clean_sentence, voice=kokoro_voice):
                 if not self.running:
@@ -304,6 +337,9 @@ class SessionController:
                     full_audio.extend(audio_chunk)
             
             if full_audio and self.running:
+                if not audio_started:
+                    await self.websocket.send_json({"type": "AUDIO_START"})
+                    self.state = "SPEAKING"
                 await self.websocket.send_bytes(bytes(full_audio))
         except Exception as e:
             logger.error(f"Error speaking sentence: {e}")
