@@ -96,7 +96,7 @@ class AudioCapture {
 
     // Speech threshold
     const isMiraSpeaking = useAppStore.getState().isSpeaking;
-    const threshold = isMiraSpeaking ? noiseFloor + 25 : noiseFloor + 12; // Harder to trigger if MIRA is speaking
+    const threshold = isMiraSpeaking ? noiseFloor + 40 : noiseFloor + 12; // Harder to trigger if MIRA is speaking
     const isLoud = rms > threshold;
 
     if (isLoud) {
@@ -105,8 +105,8 @@ class AudioCapture {
       this.consecutiveSpeechFrames = 0;
     }
 
-    // Require ~80ms normally, but ~240ms of sustained loud volume to barge-in over MIRA
-    const framesRequired = isMiraSpeaking ? 15 : 5; 
+    // Require ~80ms normally, but ~400ms (25 frames) of sustained loud volume to barge-in over MIRA
+    const framesRequired = isMiraSpeaking ? 25 : 5; 
     const isSpeaking = this.consecutiveSpeechFrames > framesRequired;
 
     if (isSpeaking) {

@@ -24,7 +24,8 @@ class OpenRouterClient:
             "stream": True
         }
         
-        async with httpx.AsyncClient() as client:
+        timeout = httpx.Timeout(60.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             try:
                 async with client.stream("POST", f"{self.base_url}/chat/completions", headers=headers, json=payload) as response:
                     response.raise_for_status()
