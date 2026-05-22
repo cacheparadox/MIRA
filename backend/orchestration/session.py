@@ -224,8 +224,10 @@ class SessionController:
             logger.info("LLM generation task cancelled")
             await self._send_debug(f"[VERBOSE] [SYSTEM] LLM task was cancelled (e.g. by INTERRUPT or SPEECH_END).")
         except Exception as e:
-            logger.error(f"Error in LLM response loop: {e}")
-            await self._send_debug(f"LLM Error: {e}")
+            import traceback
+            error_trace = traceback.format_exc()
+            logger.error(f"Error in LLM response loop:\n{error_trace}")
+            await self._send_debug(f"LLM Error: {type(e).__name__} - {str(e)}\n{error_trace}")
         finally:
             await self.websocket.send_json({"type": "AUDIO_END"})
             self.state = "IDLE"
